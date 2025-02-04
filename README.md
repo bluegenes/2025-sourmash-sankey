@@ -1,7 +1,7 @@
 # 2025-sourmash-sankey
 
 
-## Activate Environment (or anywhere with 'plotly')
+## Create/Activate Environment
 
 ```
 mamba env create -f environment.yml

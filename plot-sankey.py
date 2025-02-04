@@ -15,7 +15,7 @@ def save_sankey_diagram(fig, output_file):
     else:
         fig.show()  # Show the plot if no output file is specified
 
-def process_taxmetagenome_csv(summary_csv):
+def process_csv(input_csv, csv_type):
     nodes = []  # List of unique taxonomy nodes
     node_map = {}  # Map taxonomic label to index
     links = []  # List of link connections with flow values
@@ -23,13 +23,21 @@ def process_taxmetagenome_csv(summary_csv):
     processed_lineages = set()  # Tracks added lineage links
 
     # Read CSV file
-    with open(summary_csv, 'r') as file:
-        reader = csv.DictReader(file)
+    with open(input_csv, 'r') as inF:
+        reader = csv.DictReader(inF)
         data = list(reader)
+
+    # Determine the appropriate headers based on csv_type
+    if csv_type == "csv_summary":
+        fraction_key = "fraction"
+    elif csv_type == "with-lineages":
+        fraction_key = "f_unique_weighted"
+    else:
+        raise ValueError("Invalid csv_type. Use 'csv_summary' or 'with-lineages'.")
 
     # Process each row in the dataset
     for row in data:
-        fraction = float(row["fraction"]) * 100  # Convert to percentage
+        fraction = float(row[fraction_key]) * 100  # Convert to percentage
         lineage_parts = row["lineage"].split(";")  # Taxonomic hierarchy
 
         # Iterate through lineage levels and create source-target links
@@ -37,8 +45,8 @@ def process_taxmetagenome_csv(summary_csv):
             source_label = lineage_parts[i].strip()
             target_label = lineage_parts[i + 1].strip()
 
-            # Since 'tax metagenome' is already summarize, skip duplicates to prevent overcounting
-            if (source_label, target_label) in processed_lineages:
+            # Since 'tax metagenome' is already summarized, skip duplicates to prevent overcounting
+            if csv_type == "csv_summary" and (source_label, target_label) in processed_lineages:
                 continue
 
             # Assign indices to nodes
@@ -61,64 +69,28 @@ def process_taxmetagenome_csv(summary_csv):
 
     return nodes, links, hover_texts
 
-def process_taxannotate_csv(withlineages_csv):
-    nodes = []  # List of unique taxonomy nodes
-    node_map = {}  # Map taxonomic label to index
-    links = []  # List of link connections with flow values
-    hover_texts = []  # Custom hover text for percentages
-
-    # Read CSV file
-    with open(withlineages_csv, 'r') as file:
-        reader = csv.DictReader(file)
-        data = list(reader)
-
-    # Process each row in the dataset
-    for row in data:
-        fraction = float(row["f_unique_weighted"]) * 100  # Convert to percentage
-        lineage_parts = row["lineage"].split(";")  # Taxonomic hierarchy
-
-        # Iterate through lineage levels and create source-target links
-        for i in range(len(lineage_parts) - 1):
-            source_label = lineage_parts[i].strip()
-            target_label = lineage_parts[i + 1].strip()
-
-            # Assign indices to nodes
-            if source_label not in node_map:
-                node_map[source_label] = len(nodes)
-                nodes.append(source_label)
-
-            if target_label not in node_map:
-                node_map[target_label] = len(nodes)
-                nodes.append(target_label)
-
-            # Create a link between source and target
-            links.append({
-                "source": node_map[source_label],
-                "target": node_map[target_label],
-                "value": fraction
-            })
-            hover_texts.append(f"{source_label} → {target_label}<br>{fraction:.2f}%")
-
-    return nodes, links, hover_texts
-
 
 def main(args):
 
-    # Build sankey links appropriately based on input file type
+    # Build info appropriately based on input file type
     if args.summary_csv:
-        # Check if the required headers are present
+        input_csv = args.summary_csv
+        csv_type = "csv_summary"
         required_headers = ["fraction", "lineage"]
-        if not all(header in header for header in required_headers):
-            raise ValueError("Expected headers 'fraction' and 'lineage' not found. Is this a 'csv_summary' file from 'sourmash tax metagenome'?")
-        nodes, links, hover_texts = process_taxmetagenome_csv(args.summary_csv)
-        base_title = args.summary_csv.rsplit(".summarized.csv")[0]
-    elif args.annotate_csv:
-        # Check if the required headers are present
+    else:
+        input_csv = args.annotate_csv
+        csv_type = "with-lineages"
         required_headers = ["f_unique_weighted", "lineage"]
-        if not all(header in header for header in required_headers):
-            raise ValueError("Expected headers 'f_unique_weighted' and 'lineage' not found. Is this a 'with-lineages' file from 'sourmash tax annotate'?")
-        nodes, links, hover_texts = process_taxannotate_csv(args.annotate_csv)
-        base_title = args.annotate_csv.rsplit(".with-lineages.csv")[0]
+
+    # Check if the required headers are present
+    with open(input_csv, 'r') as file:
+        reader = csv.DictReader(file)
+        if not all(header in reader.fieldnames for header in required_headers):
+            raise ValueError(f"Expected headers {required_headers} not found. Is this a correct file for '{csv_type}' type?")
+
+    # process csv
+    nodes, links, hover_texts = process_csv(input_csv, csv_type)
+    base_title = input_csv.rsplit(".csv")[0]
 
     # Create Sankey diagram
     fig = go.Figure(go.Sankey(
