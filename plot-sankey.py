@@ -140,7 +140,12 @@ def main(args):
         title = args.title
     else:
         title = base_title 
-    fig.update_layout(title_text=f"{title}", font_size=10)
+    fig.update_layout(title_text=f"{title}",
+                      font_size=10,
+                      autosize=False,
+                      width=1500,  # Increase width
+                      height=900   # Increase height
+                    )
 
     # Save output based on file extension
     save_sankey_diagram(fig, args.output)
