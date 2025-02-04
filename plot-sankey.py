@@ -29,7 +29,7 @@ def process_csv(input_csv, csv_type):
 
     # Determine the appropriate headers based on csv_type
     if csv_type == "csv_summary":
-        fraction_key = "fraction"
+        fraction_key = "f_weighted_at_rank"
     elif csv_type == "with-lineages":
         fraction_key = "f_unique_weighted"
     else:
@@ -76,7 +76,7 @@ def main(args):
     if args.summary_csv:
         input_csv = args.summary_csv
         csv_type = "csv_summary"
-        required_headers = ["fraction", "lineage"]
+        required_headers = ["f_weighted_at_rank", "lineage"]
     else:
         input_csv = args.annotate_csv
         csv_type = "with-lineages"
